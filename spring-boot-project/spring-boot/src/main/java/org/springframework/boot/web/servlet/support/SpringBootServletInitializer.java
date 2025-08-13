@@ -93,12 +93,15 @@ public abstract class SpringBootServletInitializer implements WebApplicationInit
 		this.registerErrorPageFilter = registerErrorPageFilter;
 	}
 
+
+	// onStartup 方法调用入口是 SpringServletContainerInitializer 的 onStartup() 方法
 	@Override
 	public void onStartup(ServletContext servletContext) throws ServletException {
 		servletContext.setAttribute(LoggingApplicationListener.REGISTER_SHUTDOWN_HOOK_PROPERTY, false);
 		// Logger initialization is deferred in case an ordered
 		// LogServletContextInitializer is being used
 		this.logger = LogFactory.getLog(getClass());
+		// 创建 ApplicationContext
 		WebApplicationContext rootApplicationContext = createRootApplicationContext(servletContext);
 		if (rootApplicationContext != null) {
 			servletContext.addListener(new SpringBootContextLoaderListener(rootApplicationContext, servletContext));
@@ -147,6 +150,7 @@ public abstract class SpringBootServletInitializer implements WebApplicationInit
 
 	protected WebApplicationContext createRootApplicationContext(ServletContext servletContext) {
 		SpringApplicationBuilder builder = createSpringApplicationBuilder();
+		// 设置该构建器的主类为当前类（通常是继承了 SpringBootServletInitializer 的启动类）
 		builder.main(getClass());
 		ApplicationContext parent = getExistingRootWebApplicationContext(servletContext);
 		if (parent != null) {
@@ -154,11 +158,15 @@ public abstract class SpringBootServletInitializer implements WebApplicationInit
 			servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, null);
 			builder.initializers(new ParentContextApplicationContextInitializer(parent));
 		}
+		// 添加一个初始化器，将当前的 ServletContext 传递给 Spring 应用上下文
 		builder.initializers(new ServletContextApplicationContextInitializer(servletContext));
 		builder.contextFactory((webApplicationType) -> new AnnotationConfigServletWebServerApplicationContext());
+		// 允许子类通过重写 configure 方法对 SpringApplicationBuilder 进行自定义配置
 		builder = configure(builder);
 		builder.listeners(new WebEnvironmentPropertySourceInitializer(servletContext));
+		// 根据上述配置构建 SpringApplication 实例
 		SpringApplication application = builder.build();
+		// 如果应用未设置任何主配置类，并且当前类被标注了 @Configuration 注解，则将当前类作为主配置类加入
 		if (application.getAllSources().isEmpty()
 				&& MergedAnnotations.from(getClass(), SearchStrategy.TYPE_HIERARCHY).isPresent(Configuration.class)) {
 			application.addPrimarySources(Collections.singleton(getClass()));
@@ -167,10 +175,12 @@ public abstract class SpringBootServletInitializer implements WebApplicationInit
 				"No SpringApplication sources have been defined. Either override the "
 						+ "configure method or add an @Configuration annotation");
 		// Ensure error pages are registered
+		// 如果启用了错误页过滤器注册，则将错误页过滤器配置类加入主配置源中
 		if (this.registerErrorPageFilter) {
 			application.addPrimarySources(Collections.singleton(ErrorPageFilterConfiguration.class));
 		}
 		application.setRegisterShutdownHook(false);
+		// 启动 Spring 应用程序并返回其运行结果
 		return run(application);
 	}
 

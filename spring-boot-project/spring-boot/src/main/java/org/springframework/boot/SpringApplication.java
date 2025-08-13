@@ -47,6 +47,18 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+/**
+ * 主方法，启动Spring Boot应用程序。
+ * 使用SpringApplication.run方法加载SampleTomcatApplication类并运行。
+ *
+ * @param args 命令行参数，传递给Spring Boot应用程序。
+ */
+/**
+ * 应用程序的主入口点，用于启动Spring Boot应用。
+ * 通过调用SpringApplication.run方法，启动内嵌的Tomcat服务器并运行应用。
+ *
+ * @param args 命令行参数，传递给Spring Boot应用。
+ */
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader;
@@ -334,8 +346,8 @@ public class SpringApplication {
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);
 			// 【3】控制台打印SpringBoot的bannner标志
 			Banner printedBanner = printBanner(environment);
-			// 【4】根据不同类型创建不同类型的spring applicationcontext容器
-			// 因为这里是servlet环境，所以创建的是AnnotationConfigServletWebServerApplicationContext容器对象
+			// 【4】根据不同类型创建不同类型的spring ApplicationContext 容器
+			// 因为这里是 servlet 环境，所以创建的是 AnnotationConfigServletWebServerApplicationContext 容器对象
 			context = createApplicationContext();
 			context.setApplicationStartup(this.applicationStartup);
 			// 【5】为刚创建的AnnotationConfigServletWebServerApplicationContext容器对象做一些初始化工作，准备一些容器属性值等
@@ -371,7 +383,7 @@ public class SpringApplication {
 			}
 			// 》》》》》发射【ApplicationStartedEvent】事件，标志spring容器已经刷新，此时所有的bean实例都已经加载完毕
 			listeners.started(context, startup.timeTakenToStarted());
-			// 【9】调用ApplicationRunner和CommandLineRunner的run方法，实现spring容器启动后需要做的一些东西比如加载一些业务数据等
+			// 【9】调用 ApplicationRunner 和 CommandLineRunner 的 run 方法，实现 spring 容器启动后需要做的一些东西比如加载一些业务数据等
 			callRunners(context, applicationArguments);
 		}
 		// 【10】若启动过程中抛出异常，此时用FailureAnalyzers来报告异常
@@ -431,10 +443,13 @@ public class SpringApplication {
 			ConfigurableEnvironment environment, SpringApplicationRunListeners listeners,
 			ApplicationArguments applicationArguments, Banner printedBanner) {
 		context.setEnvironment(environment);
+		// 对 ApplicationContext 进行一些特定的后处理，比如根据应用类型（如 Web 应用）进行配置。
 		postProcessApplicationContext(context);
 		addAotGeneratedInitializerIfNecessary(this.initializers);
+		// 调用所有已注册的 ApplicationContextInitializer。这些初始化器可以在容器刷新之前修改它，是进行早期定制化配置的重要入口。
 		applyInitializers(context);
 		listeners.contextPrepared(context);
+		// 关闭在启动早期使用的 BootstrapContext，它的使命已经完成。
 		bootstrapContext.close(context);
 		if (this.properties.isLogStartupInfo()) {
 			logStartupInfo(context.getParent() == null);
@@ -443,29 +458,40 @@ public class SpringApplication {
 		}
 		// Add boot specific singleton beans
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+		// 将启动时的命令行参数 applicationArguments 注册为一个单例 Bean。
+		// 这样，你就可以在任何地方通过 @Autowired 注入它来获取命令行参数。
 		beanFactory.registerSingleton("springApplicationArguments", applicationArguments);
 		if (printedBanner != null) {
+			// 如果定义了自定义的启动 Banner，它也会被注册为一个名为 springBootBanner 的单例 Bean。
 			beanFactory.registerSingleton("springBootBanner", printedBanner);
 		}
 		if (beanFactory instanceof AbstractAutowireCapableBeanFactory autowireCapableBeanFactory) {
+			// 设置是否允许 循环依赖。Spring 默认是允许的，但过度使用可能导致设计问题。
 			autowireCapableBeanFactory.setAllowCircularReferences(this.properties.isAllowCircularReferences());
 			if (beanFactory instanceof DefaultListableBeanFactory listableBeanFactory) {
+				// 设置是否允许 Bean 定义覆盖。如果多个 Bean 有相同的名称，这个设置决定是否允许后面的定义覆盖前面的。
 				listableBeanFactory.setAllowBeanDefinitionOverriding(this.properties.isAllowBeanDefinitionOverriding());
 			}
 		}
 		if (this.properties.isLazyInitialization()) {
+			// Spring 会添加一个后处理器，使所有 Bean 默认都采用懒加载模式。这意味着 Bean 只会在第一次被使用时才创建，这能显著加快应用的启动速度。
 			context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor());
 		}
 		if (this.properties.isKeepAlive()) {
+			// 当应用程序保持运行状态时，添加一个监听器，用于在应用程序关闭时保持运行状态。
 			context.addApplicationListener(new KeepAlive());
 		}
+		// 为 BeanFactory 添加一个后处理器，用于对 Bean 定义进行排序。这在某些场景下是必要的，比如当 Bean 之间有依赖关系时。
 		context.addBeanFactoryPostProcessor(new PropertySourceOrderingBeanFactoryPostProcessor(context));
 		if (!AotDetector.useGeneratedArtifacts()) {
 			// Load the sources
+			// 收集所有 Bean 的来源，比如通过 @SpringBootApplication 标注的主类，以及通过组件扫描找到的所有类。
 			Set<Object> sources = getAllSources();
 			Assert.state(!ObjectUtils.isEmpty(sources), "No sources defined");
+			// 将这些来源加载到 ApplicationContext 中，这是 Spring 发现并定义所有 Bean 的核心步骤。
 			load(context, sources.toArray(new Object[0]));
 		}
+		// 通知所有的 SpringApplicationRunListeners，容器已经成功加载了所有 Bean 的定义。
 		listeners.contextLoaded(context);
 	}
 

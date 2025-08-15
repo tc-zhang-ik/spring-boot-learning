@@ -92,6 +92,7 @@ public class ServletContextInitializerBeans extends AbstractCollection<ServletCo
 		this.initializers = new LinkedMultiValueMap<>();
 		this.initializerTypes = (initializerTypes.length != 0) ? Arrays.asList(initializerTypes)
 				: Collections.singletonList(ServletContextInitializer.class);
+		// 获取 context 中 ServletContextInitializer 类型的 bean,添加到 initializers 中(即 ServletRegistrationBean)
 		addServletContextInitializerBeans(beanFactory);
 		addAdaptableBeans(beanFactory);
 		this.sortedList = this.initializers.values()

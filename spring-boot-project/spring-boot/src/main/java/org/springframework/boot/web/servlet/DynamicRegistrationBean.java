@@ -111,6 +111,7 @@ public abstract class DynamicRegistrationBean<D extends Registration.Dynamic> ex
 
 	@Override
 	protected final void register(String description, ServletContext servletContext) {
+		// 将 DispatcherServlet 添加到 ServletContext 中
 		D registration = addRegistration(description, servletContext);
 		if (registration == null) {
 			if (this.ignoreRegistrationFailure) {
